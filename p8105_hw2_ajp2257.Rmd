@@ -1,0 +1,12 @@
+---
+title: "p8105 HW2"
+author: "Amy Pitts"
+date: "9/30/2020"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
