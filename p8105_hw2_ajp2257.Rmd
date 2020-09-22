@@ -7,6 +7,135 @@ output: github_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(arsenal)
 ```
 
+# Problem 1
+This problem uses the Mr. Trash Wheel dataset, available as an Excel file on the course website.
+
+#### Read and clean the Mr. Trash Wheel sheet:
+- specify the sheet in the Excel file and to omit non-data entries (rows with notes / figures; columns containing notes) using arguments in read_excel
+- use reasonable variable names
+- omit rows that do not include dumpster-specific data
+- round the number of sports balls to the nearest integer and converts the result to an integer variable (using as.integer)
+
+Read and clean precipitation data for 2017 and 2018. For each, omit rows without precipitation data and add a variable year. Next, combine precipitation datasets and convert month to a character variable (the variable month.name is built into R and should be useful).
+
+Write a paragraph about these data; you are encouraged to use inline R. Be sure to note the number of observations in both resulting datasets, and give examples of key variables. For available data, what was the total precipitation in 2018? What was the median number of sports balls in a dumpster in 2017?
+
+```{r data_q1}
+mr_trash_wheel = readxl::read_excel("./data/Trash-Wheel-Collection-Totals-8-6-19.xlsx") 
+```
+
+# Problem 2
+This problem focuses on NYC Transit data; in particular, this CSV file contains information related to each entrance and exit for each subway station in NYC.
+```{r data_q2, warning=FALSE}
+transit_df = read_csv(file = "./data/NYC_Transit_Subway_Entrance_And_Exit_Data.csv", col_types = cols(
+                      .default = col_character(),
+                      `Station Latitude` = col_double(),
+                      `Station Longitude` = col_double(),
+                      #I am forcing these routes to be characters even though they wanted to be doubles. 
+                      Route8 = col_character(), 
+                      Route9 = col_character(),
+                      Route10 = col_character(),
+                      Route11 = col_character(),
+                      ADA = col_logical(),
+                      `Free Crossover` = col_logical(),
+                      `Entrance Latitude` = col_double(),
+                      `Entrance Longitude` = col_double() 
+                      )) %>% 
+              janitor::clean_names() #cleaning the names right away 
+```
+
+Read and clean the data; retain line, station, name, station latitude / longitude, routes served, entry, vending, entrance type, and ADA compliance. Convert the entry variable from character (YES vs NO) to a logical variable (the ifelse or recode function may be useful).
+```{r clean_q2}
+names(transit_df)
+#converting the entry varable from char to logical var 
+transit_df$entry = ifelse(transit_df$entry == "YES", TRUE, FALSE)
+#converting the vending varable from char to logical var 
+transit_df$vending = ifelse(transit_df$vending == "YES", TRUE, FALSE)
+```
+
+
+```{r view_q2}
+skimr::skim(transit_df)
+```
+
+#### Write a short paragraph about this dataset – explain briefly what variables the dataset contains, describe your data cleaning steps so far, and give the dimension (rows x columns) of the resulting dataset. Are these data tidy?
+The transit dataset has  1868 rows and 32 columns all describing subway lines of NYC. If has information such as the subway line, the subways that go to the station, the location, the staffing situation, and much more relevant informtation about the subways platforms. My cleaning process has been cleaning up the names of all the variables and then forcing the route# to all be characters. This way everything is consistent and makes sense. I also checked to make sure that the read_csv was correctly identifying all the variable types and it was except for the route numbers greater than 9. I also convirted all the yes no variables (entry and vending) to true and false. 
+
+#### Answer the following questions using these data:
+
+- How many distinct stations are there? Note that stations are identified both by name and by line (e.g. 125th St A/B/C/D; 125st 1; 125st 4/5); the distinct function may be useful here.
+```{r}
+small_transit_df = data.frame(transit_df$station_name, 
+                              transit_df$route1, 
+                              transit_df$route2, 
+                              transit_df$route3, 
+                              transit_df$route4, 
+                              transit_df$route5, 
+                              transit_df$route6, 
+                              transit_df$route7, 
+                              transit_df$route8, 
+                              transit_df$route9, 
+                              transit_df$route10, 
+                              transit_df$route11)
+count(distinct(small_transit_df))
+```
+There are 456 unique stations! 
+
+- How many stations are ADA compliant?
+```{r}
+table(transit_df$ada)
+```
+There are 468 records that are ADA compliant meaning that 468 stations are compliant in this dataset. 
+
+- What proportion of station entrances / exits without vending allow entrance?
+```{r}
+t = tableby(entry ~ vending , data=transit_df)
+summary(t, text=TRUE, title = "Entry by Vending ")
+```
+There is a total of 183 stations that do not have vending and within those 183 stations only 69 allow entrance. Thus this proportion of the stations that allow entry / stations that have no vending is 69 / 183 = 0.377 = 37%. However, out of all that stations there are 69 that do not have vending but allow entrance so the proprtion out of all the stations is = no vending but allowed entry / total number of stations = 69/ 1868 = 0.0369 = 3.7%
+
+
+
+#### Reformat data so that route number and route name are distinct variables. How many distinct stations serve the A train? Of the stations that serve the A train, how many are ADA compliant?
+```{r}
+transit_df_tidy = 
+  pivot_longer(
+    transit_df, 
+    route1:route11,
+    names_to = "route", 
+    names_prefix = "route",
+    values_to = "route_name") %>% 
+  drop_na(route_name) #removing the NA values 
+head(transit_df_tidy) 
+```
+```{r}
+table(transit_df_tidy$route_name)
+```
+
+
+
+
+
+# Problem 3
+This problem uses the FiveThirtyEight data; these data were gathered to create the interactive graphic on this page. In particular, we’ll use the data in pols-month.csv, unemployment.csv, and snp.csv. Our goal is to merge these into a single data frame using year and month as keys across datasets.
+
+First, clean the data in pols-month.csv. Use separate() to break up the variable mon into integer variables year, month, and day; replace month number with month name; create a president variable taking values gop and dem, and remove prez_dem and prez_gop; and remove the day variable.
+
+Second, clean the data in snp.csv using a similar process to the above. For consistency across datasets, arrange according to year and month, and organize so that year and month are the leading columns.
+
+Third, tidy the unemployment data so that it can be merged with the previous datasets. This process will involve switching from “wide” to “long” format; ensuring that key variables have the same name; and ensuring that key variables take the same values.
+
+Join the datasets by merging snp into pols, and merging unemployment into the result.
+
+Write a short paragraph about these datasets. Explain briefly what each dataset contained, and describe the resulting dataset (e.g. give the dimension, range of years, and names of key variables).
+
+Note: we could have used a date variable as a key instead of creating year and month keys; doing so would help with some kinds of plotting, and be a more accurate representation of the data. Date formats are tricky, though. For more information check out the lubridate package in the tidyverse
+
+```{r}
+
+```
 
