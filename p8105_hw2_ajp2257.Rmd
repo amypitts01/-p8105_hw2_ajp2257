@@ -8,6 +8,7 @@ output: github_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
+library(readxl)
 library(arsenal)
 ```
 
@@ -24,9 +25,69 @@ Read and clean precipitation data for 2017 and 2018. For each, omit rows without
 
 Write a paragraph about these data; you are encouraged to use inline R. Be sure to note the number of observations in both resulting datasets, and give examples of key variables. For available data, what was the total precipitation in 2018? What was the median number of sports balls in a dumpster in 2017?
 
-```{r data_q1}
-mr_trash_wheel = readxl::read_excel("./data/Trash-Wheel-Collection-Totals-8-6-19.xlsx") 
+```{r}
+#mr_trash_wheel = readxl::read_excel("./data/Trash-Wheel-Collection-Totals-8-6-19.xlsx") 
 ```
+
+```{r data_q1}
+trashwheel_df = 
+  read_xlsx(
+    "./data/Trash-Wheel-Collection-Totals-8-6-19.xlsx",
+    range = cell_cols("A:N"))  %>% # only looking at the specific columns
+  janitor::clean_names() %>% #cleaning names 
+  drop_na(dumpster)  %>% # only looking at the dumster variable 
+  mutate(
+    sports_balls = round(sports_balls),
+    sports_balls = as.integer(sports_balls)
+  )
+
+```
+
+Reading in the precipitation data 
+```{r}
+precip_2018 =
+  read_excel(
+     "./data/Trash-Wheel-Collection-Totals-8-6-19.xlsx",
+     sheet = "2018 Precipitation",
+     skip = 1
+  ) %>% 
+  janitor::clean_names() %>%
+  drop_na(month) %>%
+  mutate(year = 2018) %>%
+  relocate(year)
+
+precip_2017 =
+  read_excel(
+     "./data/Trash-Wheel-Collection-Totals-8-6-19.xlsx",
+     sheet = "2017 Precipitation",
+     skip = 1
+  ) %>% 
+  janitor::clean_names() %>%
+  drop_na(month) %>%
+  mutate(year = 2017) %>%
+  relocate(year)
+```
+
+now combine annual precipitation 
+
+```{r}
+month_df = 
+  tibble(
+    month = 1:12,
+    month_name = month.name
+  )
+
+precip_df = 
+  bind_rows(precip_2017, precip_2018)
+
+left_join(precip_df, month_df, by = "month")
+```
+
+This data set contains info from the Mr. Trashwheel trash collector in Baltimore Maryland. As trash enters the inner harbor, the trashwheel collects that trash and stores it in a dumster. The dataset contains info on year month and trash collected including some specific kinds of trash. Ther are a total of `r nrow(trashwheel_df)` rows in our final dataset. Addition data sheets include monthly precipitation data. 
+
+
+
+
 
 # Problem 2
 This problem focuses on NYC Transit data; in particular, this CSV file contains information related to each entrance and exit for each subway station in NYC.
@@ -113,11 +174,20 @@ transit_df_tidy =
 head(transit_df_tidy) 
 ```
 ```{r}
-table(transit_df_tidy$route_name)
+#Filtering for A train, looking at only distinct, counting them all up 
+filter(transit_df_tidy, route_name=="A") %>%
+  distinct() %>%
+  count()
 ```
 
+There are 273 distinct stations that have access to the A line. 
 
-
+```{r}
+#Filtering for A train and for ADA compliance 
+filter(transit_df_tidy, route_name=="A", ada == TRUE) %>%
+  count()
+```
+There are 107 stations that have the A train that are ADA compliant.
 
 
 # Problem 3
