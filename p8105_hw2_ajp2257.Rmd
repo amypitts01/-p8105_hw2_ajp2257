@@ -83,7 +83,7 @@ precip_df =
 left_join(precip_df, month_df, by = "month")
 ```
 
-This data set contains info from the Mr. Trashwheel trash collector in Baltimore Maryland. As trash enters the inner harbor, the trashwheel collects that trash and stores it in a dumster. The dataset contains info on year month and trash collected including some specific kinds of trash. Ther are a total of `r nrow(trashwheel_df)` rows in our final dataset. Addition data sheets include monthly precipitation data. 
+This data set contains info from the Mr. Trashwheel trash collector in Baltimore Maryland. As trash enters the inner harbor, the trashwheel collects that trash and stores it in a dumster. The dataset contains info on year month and trash collected including some specific kinds of trash. There are a total of `r nrow(trashwheel_df)` rows in our final dataset. Addition data sheets include monthly precipitation data. 
 
 
 
@@ -96,7 +96,7 @@ transit_df = read_csv(file = "./data/NYC_Transit_Subway_Entrance_And_Exit_Data.c
                       .default = col_character(),
                       `Station Latitude` = col_double(),
                       `Station Longitude` = col_double(),
-                      #I am forcing these routes to be characters even though they wanted to be doubles. 
+                      #I am forcing these routes to be chars  
                       Route8 = col_character(), 
                       Route9 = col_character(),
                       Route10 = col_character(),
@@ -106,16 +106,16 @@ transit_df = read_csv(file = "./data/NYC_Transit_Subway_Entrance_And_Exit_Data.c
                       `Entrance Latitude` = col_double(),
                       `Entrance Longitude` = col_double() 
                       )) %>% 
-              janitor::clean_names() #cleaning the names right away 
+              janitor::clean_names()  %>% 
+              mutate(
+                entry = ifelse(entry == "YES", TRUE, FALSE ),
+                vending = ifelse(vending == "YES", TRUE, FALSE )
+              )
 ```
 
 Read and clean the data; retain line, station, name, station latitude / longitude, routes served, entry, vending, entrance type, and ADA compliance. Convert the entry variable from character (YES vs NO) to a logical variable (the ifelse or recode function may be useful).
 ```{r clean_q2}
 names(transit_df)
-#converting the entry varable from char to logical var 
-transit_df$entry = ifelse(transit_df$entry == "YES", TRUE, FALSE)
-#converting the vending varable from char to logical var 
-transit_df$vending = ifelse(transit_df$vending == "YES", TRUE, FALSE)
 ```
 
 
@@ -130,39 +130,36 @@ The transit dataset has  1868 rows and 32 columns all describing subway lines of
 
 - How many distinct stations are there? Note that stations are identified both by name and by line (e.g. 125th St A/B/C/D; 125st 1; 125st 4/5); the distinct function may be useful here.
 ```{r}
-small_transit_df = data.frame(transit_df$station_name, 
-                              transit_df$route1, 
-                              transit_df$route2, 
-                              transit_df$route3, 
-                              transit_df$route4, 
-                              transit_df$route5, 
-                              transit_df$route6, 
-                              transit_df$route7, 
-                              transit_df$route8, 
-                              transit_df$route9, 
-                              transit_df$route10, 
-                              transit_df$route11)
-count(distinct(small_transit_df))
+unique_stations = transit_df %>% select(station_name, route1, route2,  route3,  
+                                        route4, route5, route6, route7, route8, 
+                                        route9, route10, route11) %>% 
+                                 distinct() %>%
+                                 count()
 ```
-There are 456 unique stations! 
+There are `r unique_stations` unique stations! 
 
 - How many stations are ADA compliant?
 ```{r}
-table(transit_df$ada)
+transit_df %>% 
+  select(ada) %>% 
+  table()
 ```
 There are 468 records that are ADA compliant meaning that 468 stations are compliant in this dataset. 
 
 - What proportion of station entrances / exits without vending allow entrance?
 ```{r}
-t = tableby(entry ~ vending , data=transit_df)
-summary(t, text=TRUE, title = "Entry by Vending ")
+transit_df %>% 
+  select(entry, vending) %>% 
+  table()
 ```
+
 There is a total of 183 stations that do not have vending and within those 183 stations only 69 allow entrance. Thus this proportion of the stations that allow entry / stations that have no vending is 69 / 183 = 0.377 = 37%. However, out of all that stations there are 69 that do not have vending but allow entrance so the proprtion out of all the stations is = no vending but allowed entry / total number of stations = 69/ 1868 = 0.0369 = 3.7%
 
 
 
 #### Reformat data so that route number and route name are distinct variables. How many distinct stations serve the A train? Of the stations that serve the A train, how many are ADA compliant?
 ```{r}
+# re formating the data 
 transit_df_tidy = 
   pivot_longer(
     transit_df, 
@@ -171,23 +168,23 @@ transit_df_tidy =
     names_prefix = "route",
     values_to = "route_name") %>% 
   drop_na(route_name) #removing the NA values 
-head(transit_df_tidy) 
-```
-```{r}
+
 #Filtering for A train, looking at only distinct, counting them all up 
-filter(transit_df_tidy, route_name=="A") %>%
+distinct_A <- filter(transit_df_tidy, route_name=="A") %>%
   distinct() %>%
   count()
+distinct_A
 ```
 
-There are 273 distinct stations that have access to the A line. 
+There are `r distinct_A` distinct stations that have access to the A line. 
 
 ```{r}
 #Filtering for A train and for ADA compliance 
-filter(transit_df_tidy, route_name=="A", ada == TRUE) %>%
+distinct_ada = filter(transit_df_tidy, route_name=="A", ada == TRUE) %>%
   count()
+distinct_ada
 ```
-There are 107 stations that have the A train that are ADA compliant.
+There are `r distinct_ada` stations that have the A train that are ADA compliant.
 
 
 # Problem 3
@@ -195,17 +192,94 @@ This problem uses the FiveThirtyEight data; these data were gathered to create t
 
 First, clean the data in pols-month.csv. Use separate() to break up the variable mon into integer variables year, month, and day; replace month number with month name; create a president variable taking values gop and dem, and remove prez_dem and prez_gop; and remove the day variable.
 
+```{r}
+month_df = 
+  tibble(
+    month = 1:12,
+    month_name = month.name
+  )
+
+pols_month = read_csv(file = "./data/fivethirtyeight_datasets/pols-month.csv") %>%
+                janitor::clean_names() %>%
+                separate(mon, sep="-", into = c("year", "month", "day")) %>%
+                mutate(
+                 year = as.integer(year),
+                 month = as.integer(month),
+                 day = as.integer(day)
+                ) 
+             
+
+pols_month = left_join(pols_month, month_df, by = "month") %>% 
+              relocate(year, month_name) %>% #i want the month values closer to front
+              mutate(
+                 prez_dem = ifelse(prez_dem == 1, TRUE, NA), #puting NA so we can easily drop later
+                 prez_gop = ifelse(prez_gop == 1, TRUE, NA) 
+              ) 
+              
+pols_month = pivot_longer( # diretion said to combine the dem and gop prez data
+                pols_month, 
+                c(prez_dem, prez_gop), 
+                names_to = "president", 
+                names_prefix = "prez_",
+                values_to = "pres_data") %>% 
+                drop_na(pres_data) %>% #removing the NA values 
+                select(-pres_data) %>% #no longer need the pres_data column becuase it is redundent
+                select(-c(day, month)) #directions said to remove day column and month is redundent
+
+       
+```
+
+
 Second, clean the data in snp.csv using a similar process to the above. For consistency across datasets, arrange according to year and month, and organize so that year and month are the leading columns.
 
+```{r}
+snp_df = read_csv(file = "./data/fivethirtyeight_datasets/snp.csv")  %>%
+                janitor::clean_names() %>%
+                separate(date, sep="/", into = c("day", "month", "year")) %>%
+                mutate(
+                 year = as.integer(year),
+                 month = as.integer(month),
+                 day = as.integer(day)
+                ) 
+snp_df = left_join(snp_df, month_df, by = "month") %>% 
+              relocate(year, month_name) %>% #rearranging the variables 
+              select(-c(month,day)) # the month value is repetitive so removing 
+```
+
 Third, tidy the unemployment data so that it can be merged with the previous datasets. This process will involve switching from “wide” to “long” format; ensuring that key variables have the same name; and ensuring that key variables take the same values.
+```{r}
+unemploy = read_csv(file = "./data/fivethirtyeight_datasets/unemployment.csv")  %>%
+          janitor::clean_names() 
+
+
+unemploy = pivot_longer(
+  unemploy, 
+  jan:dec,
+  names_to = "month",
+  values_to = "unemployment_values")
+
+month_word = 
+  tibble(
+    month = c("jan", "feb", "mar", "apr", "may", "jun",
+              "jul", "aug", "sep", "oct", "nov", "dec"),
+    month_name = month.name
+  )
+unemploy = left_join(unemploy, month_word, by = "month") %>% 
+              relocate(year, month_name) %>%
+              select(-month)
+```
+
 
 Join the datasets by merging snp into pols, and merging unemployment into the result.
+```{r}
+#first merging snp into pols 
+joining_df = left_join(snp_df, pols_month, by=c("year","month_name"))
+total_df = left_join(joining_df, unemploy, by=c("year","month_name"))
+head(total_df)
+```
 
 Write a short paragraph about these datasets. Explain briefly what each dataset contained, and describe the resulting dataset (e.g. give the dimension, range of years, and names of key variables).
 
-Note: we could have used a date variable as a key instead of creating year and month keys; doing so would help with some kinds of plotting, and be a more accurate representation of the data. Date formats are tricky, though. For more information check out the lubridate package in the tidyverse
 
-```{r}
 
-```
 
