@@ -25,10 +25,7 @@ library(arsenal)
 
 ##### Write a paragraph about these data; you are encouraged to use inline R. Be sure to note the number of observations in both resulting datasets, and give examples of key variables. For available data, what was the total precipitation in 2018? What was the median number of sports balls in a dumpster in 2017?
 
-```{r}
-#mr_trash_wheel = readxl::read_excel("./data/Trash-Wheel-Collection-Totals-8-6-19.xlsx") 
-```
-
+Loading the trash wheel data 
 ```{r data_q1}
 trashwheel_df = 
   read_xlsx(
@@ -126,7 +123,7 @@ skimr::skim(transit_df)
 
 #### Write a short paragraph about this dataset – explain briefly what variables the dataset contains, describe your data cleaning steps so far, and give the dimension (rows x columns) of the resulting dataset. Are these data tidy?
 
-The transit dataset has  1868 rows and 32 columns all describing subway lines of NYC. If has information such as the subway line, the subways that go to the station, the location, the staffing situation, and much more relevant informtation about the subways platforms. My cleaning process has been cleaning up the names of all the variables and then forcing the route# to all be characters. This way everything is consistent and makes sense. I also checked to make sure that the read_csv was correctly identifying all the variable types and it was except for the route numbers greater than 9. I also convirted all the yes no variables (entry and vending) to true and false. 
+The transit dataset has `r nrow(transit_df)` rows and `r ncol(trashwheel_df)` columns all describing subway lines of NYC. If has information such as the subway line, `station_name`, the subways that go to the station contained in all the `route#` variables, the location, the staffing situation, and much more relevant information about the subways platforms. This information includes whether the station is ADA complacent in the `ada` variable, `vending`, accessability options.  My cleaning process has been cleaning up the names of all the variables and then forcing the `route#` to all be characters. This way everything is consistent and makes sense. I also checked to make sure that the read_csv was correctly identifying all the variable types and it was except for the route numbers greater than 9. I also converted all the yes no variables (`entry` and `vending`) to true and false rather than yes or no. 
 
 ##### Answer the following questions using these data:
 
@@ -146,7 +143,7 @@ transit_df %>%
   select(ada) %>% 
   table()
 ```
-There are 468 records that are ADA compliant meaning that 468 stations are compliant in this dataset. 
+There are 468 records that are ADA compliant meaning that 468 stations are compliant in this dataset. There are also 1400 non complinent records.  
 
 - What proportion of station entrances / exits without vending allow entrance?
 ```{r}
@@ -155,7 +152,7 @@ transit_df %>%
   table()
 ```
 
-There is a total of 183 stations that do not have vending and within those 183 stations only 69 allow entrance. Thus this proportion of the stations that allow entry / stations that have no vending is 69 / 183 = 0.377 = 37%. However, out of all that stations there are 69 that do not have vending but allow entrance so the proprtion out of all the stations is = no vending but allowed entry / total number of stations = 69/ 1868 = 0.0369 = 3.7%
+There is a total of 183 stations that do not have vending and within those 183 stations only 69 allow entrance. Thus this proportion of the stations that allow entry / stations that have no vending is 69 / 183 = 0.377 = 37%. However, out of all that stations there are 69 that do not have vending but allow entrance so the proportion out of all the stations is = no vending but allowed entry / total number of stations = 69/ 1868 = 0.0369 = 3.7%
 
 
 
